@@ -1,45 +1,50 @@
-import React, { useState, useRef, useCallback } from 'react'
+import { Button, Input } from '@material-ui/core';
+import React, { useState, useRef, useReducer } from 'react'
 import './App.css';
-import useBookSearch from './useBookSearch';
+import TodoList from './TodoList';
+
+export const ACTIONS = {
+  ADD_TODO: 'add-todo',
+  TOGGLE_TODO: 'toggle-todo',
+  DELETE_TODO: 'delete-todo',
+}
+
+function reducer(todos, action) {
+  switch (action.type) {
+    case ACTIONS.ADD_TODO:
+      return [...todos, { id: Date.now(), title: action.payload.title, complete: false }]
+
+    case ACTIONS.TOGGLE_TODO:
+      return todos.map(todo => {
+        if (todo.id === action.payload.id) {
+          return { ...todo, complete: !todo.complete }
+        }
+        return todo
+      })
+
+    default:
+      break;
+  }
+}
 
 function App() {
-  const [query, setQuery] = useState('')
-  const [pageNumber, setPageNumber] = useState(1)
+  // const [todos, setTodos] = useState([])
+  const [todos, dispatch] = useReducer(reducer, [])
+  const todoTitleRef = useRef()
 
-  const { loading, books, error, hasMore } = useBookSearch(query, pageNumber)
-
-  const observer = useRef()
-  const lastBookElementRef = useCallback(node => {
-    if (loading) return
-    if (observer.current) observer.current.disconnect()
-
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        setPageNumber(prevPageNumber => prevPageNumber + 1)
-      }
-    })
-
-    if (node) observer.current.observe(node)
-  }, [loading, hasMore])
-
-
-  function handleInput(e) {
-    setQuery(e.target.value)
-    setPageNumber(1)
+  function handleAddTodo() {
+    const title = todoTitleRef.current.value
+    dispatch({ type: ACTIONS.ADD_TODO, payload: { title: title } })
+    todoTitleRef.current.value = null
   }
+
+
 
   return (
     <div className="app">
-      <input type="text" value={query} onChange={handleInput} />
-      {books.map((book, index) => {
-        if (books.length === index + 1) {
-          return <div className="book" ref={lastBookElementRef} key={book} >{book}</div>
-        } else {
-          return <div className="book" key={book} >{book}</div>
-        }
-      })}
-      <div>{loading && <div className="loading">loading...</div>}</div>
-      <div>{error && 'Error..'}</div>
+      <Input inputRef={todoTitleRef} label="Title" />
+      <Button onClick={handleAddTodo} variant="contained" color="primary">Add</Button>
+      <TodoList todos={todos} dispatch={dispatch} />
     </div>
   );
 }
